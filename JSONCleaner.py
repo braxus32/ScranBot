@@ -1,6 +1,7 @@
 import json
 
-with open('data.json', 'w+') as f:
+obj = None
+with open('key.json', 'r') as f:
     line = f.read()
     print(line)
     line = line.split('][')
@@ -13,4 +14,6 @@ with open('data.json', 'w+') as f:
     print('[' + new_line)
     obj = json.loads('[' + new_line)
     print(obj)
-    # json.dump(obj, f)
+
+with open('key.json', 'w') as f:
+    json.dump(obj, f)
