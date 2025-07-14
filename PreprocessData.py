@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from ScranBot import ScranModel
 from ScranDataSet import ScranDataset
+from ScranGetter import ScranGetter
 
 # Image transformation
 image_transform = transforms.Compose([
@@ -240,37 +241,69 @@ def train(model: torch.nn.Module,
     # 6. Return the filled results at the end of the epochs
     return results
 
+def learn(num_epochs=1):
+    model = ScranModel()
+    model.load_state_dict(torch.load('model_weights.pth', weights_only=True))
 
-model = ScranModel()
+    data_pairs, score_pairs = get_pairs()
 
-data_pairs, score_pairs = get_pairs()
+    dataset = ScranDataset(data_pairs, score_pairs, preprocess_pair)
+    dataloader = DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=collate_fn)
 
-dataset = ScranDataset(data_pairs, score_pairs, preprocess_pair)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=collate_fn)
+    # Set random seeds
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
 
-# Set random seeds
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
+    # Setup loss function and optimizer
+    loss_fn = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 
-# Set number of epochs
-NUM_EPOCHS = 5
+    # Start the timer
+    from timeit import default_timer as timer
+    start_time = timer()
 
-# Setup loss function and optimizer
-loss_fn = nn.BCEWithLogitsLoss()
-optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
+    # Train model_0
+    model_results = train(model=model,
+                            train_dataloader=dataloader,
+                            test_dataloader=dataloader,
+                            optimizer=optimizer,
+                            loss_fn=loss_fn,
+                            epochs=num_epochs)
 
-# Start the timer
-from timeit import default_timer as timer
-start_time = timer()
+    torch.save(model.state_dict(), "model_weights.pth")
 
-# Train model_0
-model_results = train(model=model,
-                        train_dataloader=dataloader,
-                        test_dataloader=dataloader,
-                        optimizer=optimizer,
-                        loss_fn=loss_fn,
-                        epochs=NUM_EPOCHS)
+    # End the timer and print out how long it took
+    end_time = timer()
+    print(f"Total training time: {end_time-start_time:.3f} seconds")
 
-# End the timer and print out how long it took
-end_time = timer()
-print(f"Total training time: {end_time-start_time:.3f} seconds")
+def play():
+    model = ScranModel()
+    model.load_state_dict(torch.load('model_weights.pth', weights_only=True))
+    model.eval()
+    print("got ScranBot")
+    getter = ScranGetter()
+    with torch.inference_mode():
+        for i in range(10):
+            data_pair = getter.record()
+
+            dataset = ScranDataset([data_pair], [["0%", "0%"]], preprocess_pair)
+            dataloader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
+
+            for batch in dataloader:
+                logit = model(batch['img_left'], batch['img_right'],
+                           batch['tok_left'], batch['tok_right'])
+
+                print(logit)
+
+                if logit[0] < 0:
+                    getter.play_binary(choice=False)
+                else:
+                    getter.play_binary(choice=True)
+
+    getter.quit()
+
+
+
+learn(2)
+# play()
+

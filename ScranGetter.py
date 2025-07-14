@@ -101,8 +101,10 @@ class ScranGetter:
 
     def play(self, choice=False):
         if choice: # right scran
+            print("Chose right")
             scran_choice = self.driver.find_element(By.CSS_SELECTOR, "div.scran:nth-child(2)")
         else: # left scran
+            print("Chose left")
             scran_choice = self.driver.find_element(By.CSS_SELECTOR, "div.scran:nth-child(1)")
         self.wait.until(element_to_be_clickable(scran_choice))
         scran_choice.click()
@@ -124,7 +126,7 @@ class ScranGetter:
         return data_pair
 
     def collect_data(self, runs=100):
-        with open('data.json', 'w') as df, open('key.json', 'w') as kf:
+        with open('data.json', 'a') as df, open('key.json', 'a') as kf:
             for i in range(runs):
                 if i != 0 and i % 10 == 0:
                     self.handle_new_game()
